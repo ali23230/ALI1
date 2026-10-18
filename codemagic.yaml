@@ -7,6 +7,12 @@ workflows:
     scripts:
       - name: Create Android platform structure
         script: flutter create . --platforms=android --org com.example.storeapp
+      - name: Update Android SDK compile version
+        script: |
+          if [ -f android/app/build.gradle ]; then
+            sed -i '' 's/compileSdkVersion [0-9]*/compileSdkVersion 34/g' android/app/build.gradle || true
+            sed -i '' 's/targetSdkVersion [0-9]*/targetSdkVersion 34/g' android/app/build.gradle || true
+          fi
       - name: Get Flutter packages
         script: flutter packages get
       - name: Build APK
