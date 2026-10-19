@@ -7,6 +7,14 @@ workflows:
     scripts:
       - name: Generate Android Platform Files
         script: flutter create . --platforms=android
+      - name: Fix Android SDK Version
+        script: |
+          if [ -f android/app/build.gradle ]; then
+            sed -i '' 's/compileSdkVersion [0-9]*/compileSdkVersion 34/g' android/app/build.gradle || true
+            sed -i '' 's/targetSdkVersion [0-9]*/targetSdkVersion 34/g' android/app/build.gradle || true
+            sed -i '' 's/compileSdk [0-9]*/compileSdk 34/g' android/app/build.gradle || true
+            sed -i '' 's/targetSdk [0-9]*/targetSdk 34/g' android/app/build.gradle || true
+          fi
       - name: Get Flutter packages
         script: flutter packages get
       - name: Build APK
