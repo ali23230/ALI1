@@ -1,12 +1,11 @@
-
 workflows:
   default-workflow:
     name: Default Workflow
     instance_type: mac_mini_m2
     environment:
-      flutter: stable
+      flutter: 3.16.0
     scripts:
-      - name: Clean old android files and recreate structure
+      - name: Clean old files and recreate structure
         script: |
           rm -rf android ios linux macos windows web
           flutter create . --platforms=android
