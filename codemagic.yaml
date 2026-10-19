@@ -1,3 +1,4 @@
+
 workflows:
   default-workflow:
     name: Default Workflow
@@ -5,6 +6,10 @@ workflows:
     environment:
       flutter: stable
     scripts:
+      - name: Clean old android files and recreate structure
+        script: |
+          rm -rf android ios linux macos windows web
+          flutter create . --platforms=android
       - name: Get Flutter packages
         script: flutter packages get
       - name: Build APK
