@@ -7,8 +7,9 @@ workflows:
     scripts:
       - name: Generate Android Platform Files
         script: flutter create . --platforms=android
-      - name: Force Fix Android SDK Version
+      - name: Clean Conflicting Gradle Files and Fix SDK
         script: |
+          rm -f android/app/build.gradle.kts
           mkdir -p android/app
           cat << 'EOF' > android/app/build.gradle
           plugins {
