@@ -4,6 +4,7 @@ workflows:
     instance_type: mac_mini_m2
     environment:
       flutter: 3.16.0
+      android_sdk: latest
     scripts:
       - name: Clean old files and recreate structure
         script: |
