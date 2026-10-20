@@ -12,8 +12,9 @@ workflows:
           fi
       - name: Get Flutter packages
         script: flutter packages get
-      - name: Force Override build.gradle.kts to SDK 36
+      - name: Force Global SDK 36 for All Subprojects
         script: |
+          # 1. تعديل ملف التطبيق الرئيسي
           mkdir -p android/app
           cat << 'EOF' > android/app/build.gradle.kts
           plugins {
@@ -56,7 +57,41 @@ workflows:
               source = "../.."
           }
           EOF
-          echo "Overrode build.gradle.kts to SDK 36 right before build"
+
+          # 2. إضافة إعدادات جذرية تجبر كل المكاتب (مثل share_plus) على اعتماد SDK 36
+          cat << 'EOF' > android/build.gradle
+          allprojects {
+              repositories {
+                  google()
+                  mavenCentral()
+              }
+          }
+
+          rootProject.buildDir = '../build'
+          subprojects {
+              project.buildDir = "${rootProject.buildDir}/${project.name}"
+          }
+          subprojects {
+              afterEvaluate { project ->
+                  if (project.hasProperty("android")) {
+                      project.android {
+                          if (namespace == null) {
+                              namespace project.group
+                          }
+                          compileSdkVersion 36
+                          if (defaultConfig.targetSdkVersion == null || defaultConfig.targetSdkVersion.apiLevel < 36) {
+                              defaultConfig.targetSdkVersion = 36
+                          }
+                      }
+                  }
+              }
+          }
+
+          tasks.register("clean", Delete) {
+              delete rootProject.buildDir
+          }
+          EOF
+          echo "Global SDK 36 enforced on all subprojects successfully"
       - name: Build APK
         script: flutter build apk --release
     artifacts:
