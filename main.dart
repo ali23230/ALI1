@@ -1,6 +1,8 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:share_plus/share_plus.dart';
+import 'package:intl/intl' as intl;
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
@@ -25,17 +27,24 @@ class StoreApp extends StatelessWidget {
 class DebtModel {
   String name;
   double amount;
+  DateTime lastUpdated;
 
-  DebtModel({required this.name, required this.amount});
+  DebtModel({
+    required this.name,
+    required this.amount,
+    required this.lastUpdated,
+  });
 
   Map<String, dynamic> toJson() => {
         'name': name,
         'amount': amount,
+        'lastUpdated': lastUpdated.toIso8601String(),
       };
 
   factory DebtModel.fromJson(Map<String, dynamic> json) => DebtModel(
         name: json['name'],
         amount: (json['amount'] as num).toDouble(),
+        lastUpdated: DateTime.parse(json['lastUpdated']),
       );
 }
 
@@ -58,7 +67,7 @@ class _DebtHomePageState extends State<DebtHomePage> {
     loadDebts();
   }
 
-  // تحميل الديون المحفوظة عند فتح التطبيق
+  // تحميل الديون المحفوظة من ذاكرة الهاتف
   Future<void> loadDebts() async {
     final prefs = await SharedPreferences.getInstance();
     final String? debtsString = prefs.getString('saved_debts');
@@ -70,7 +79,7 @@ class _DebtHomePageState extends State<DebtHomePage> {
     }
   }
 
-  // حفظ الديون في ذاكرة الهاتف تلقائياً
+  // حفظ الديون فوراً في ذاكرة الهاتف
   Future<void> saveDebts() async {
     final prefs = await SharedPreferences.getInstance();
     final String encoded = jsonEncode(debtsList.map((e) => e.toJson()).toList());
@@ -93,12 +102,17 @@ class _DebtHomePageState extends State<DebtHomePage> {
     setState(() {
       if (existingIndex != -1) {
         debtsList[existingIndex].amount += parsedAmount;
+        debtsList[existingIndex].lastUpdated = DateTime.now();
       } else {
-        debtsList.add(DebtModel(name: nameText, amount: parsedAmount));
+        debtsList.add(DebtModel(
+          name: nameText,
+          amount: parsedAmount,
+          lastUpdated: DateTime.now(),
+        ));
       }
     });
 
-    saveDebts(); // حفظ التغييرات
+    saveDebts(); // حفظ التغييرات فوراً
     nameController.clear();
     amountController.clear();
   }
@@ -138,6 +152,7 @@ class _DebtHomePageState extends State<DebtHomePage> {
                 if (addedAmount != null && addedAmount > 0) {
                   setState(() {
                     debtsList[index].amount += addedAmount;
+                    debtsList[index].lastUpdated = DateTime.now();
                   });
                   saveDebts(); // حفظ التغييرات
                 }
@@ -186,6 +201,7 @@ class _DebtHomePageState extends State<DebtHomePage> {
                 if (paidAmount != null && paidAmount > 0) {
                   setState(() {
                     debtsList[index].amount -= paidAmount;
+                    debtsList[index].lastUpdated = DateTime.now();
                     if (debtsList[index].amount <= 0) {
                       debtsList.removeAt(index);
                     }
@@ -207,6 +223,12 @@ class _DebtHomePageState extends State<DebtHomePage> {
       debtsList.removeAt(index);
     });
     saveDebts(); // حفظ التغييرات
+  }
+
+  void shareDebt(DebtModel debt) {
+    String dateFormatted = intl.DateFormat('yyyy/MM/dd HH:mm').format(debt.lastUpdated);
+    String message = 'تفاصيل الدين:\nالزبون: ${debt.name}\nالمبلغ المتبقي: ${debt.amount} دج\nآخر تحديث: $dateFormatted';
+    Share.share(message);
   }
 
   double getTotal() {
@@ -263,19 +285,35 @@ class _DebtHomePageState extends State<DebtHomePage> {
               child: ListView.builder(
                 itemCount: debtsList.length,
                 itemBuilder: (context, index) {
+                  final debt = debtsList[index];
+                  String dateFormatted = intl.DateFormat('yyyy/MM/dd HH:mm').format(debt.lastUpdated);
                   return Card(
                     child: ListTile(
                       title: Text(
-                        debtsList[index].name,
+                        debt.name,
                         style: const TextStyle(fontWeight: FontWeight.bold),
                       ),
-                      subtitle: Text(
-                        'المتبقي: ${debtsList[index].amount} دج',
-                        style: const TextStyle(color: Colors.red, fontWeight: FontWeight.bold),
+                      subtitle: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'المتبقي: ${debt.amount} دج',
+                            style: const TextStyle(color: Colors.red, fontWeight: FontWeight.bold),
+                          ),
+                          Text(
+                            'التاريخ: $dateFormatted',
+                            style: const TextStyle(fontSize: 12, color: Colors.grey),
+                          ),
+                        ],
                       ),
                       trailing: Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
+                          IconButton(
+                            icon: const Icon(Icons.share, color: Colors.orange),
+                            tooltip: 'مشاركة',
+                            onPressed: () => shareDebt(debt),
+                          ),
                           IconButton(
                             icon: const Icon(Icons.add_circle, color: Colors.blue),
                             tooltip: 'زيادة دين',
