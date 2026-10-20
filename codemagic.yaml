@@ -5,12 +5,12 @@ workflows:
     environment:
       flutter: stable
     scripts:
-      - name: Initialize Android Platform
+      - name: Setup Android Only If Missing
         script: |
           if [ ! -d "android" ]; then
             flutter create . --platforms=android --org com.example.storeapp
           fi
-      - name: Write Complete build.gradle.kts with SDK 36
+      - name: Write Final build.gradle.kts with SDK 36
         script: |
           mkdir -p android/app
           cat << 'EOF' > android/app/build.gradle.kts
@@ -54,7 +54,7 @@ workflows:
               source = "../.."
           }
           EOF
-          echo "Successfully wrote build.gradle.kts with SDK 36"
+          echo "build.gradle.kts successfully locked to SDK 36"
       - name: Get Flutter packages
         script: flutter packages get
       - name: Build APK
