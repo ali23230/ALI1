@@ -1,4 +1,6 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
@@ -25,6 +27,16 @@ class DebtModel {
   double amount;
 
   DebtModel({required this.name, required this.amount});
+
+  Map<String, dynamic> toJson() => {
+        'name': name,
+        'amount': amount,
+      };
+
+  factory DebtModel.fromJson(Map<String, dynamic> json) => DebtModel(
+        name: json['name'],
+        amount: (json['amount'] as num).toDouble(),
+      );
 }
 
 class DebtHomePage extends StatefulWidget {
@@ -38,7 +50,32 @@ class _DebtHomePageState extends State<DebtHomePage> {
   final TextEditingController nameController = TextEditingController();
   final TextEditingController amountController = TextEditingController();
 
-  final List<DebtModel> debtsList = [];
+  List<DebtModel> debtsList = [];
+
+  @override
+  void initState() {
+    super.initState();
+    loadDebts();
+  }
+
+  // تحميل الديون المحفوظة عند فتح التطبيق
+  Future<void> loadDebts() async {
+    final prefs = await SharedPreferences.getInstance();
+    final String? debtsString = prefs.getString('saved_debts');
+    if (debtsString != null) {
+      final List decoded = jsonDecode(debtsString);
+      setState(() {
+        debtsList = decoded.map((item) => DebtModel.fromJson(item)).toList();
+      });
+    }
+  }
+
+  // حفظ الديون في ذاكرة الهاتف تلقائياً
+  Future<void> saveDebts() async {
+    final prefs = await SharedPreferences.getInstance();
+    final String encoded = jsonEncode(debtsList.map((e) => e.toJson()).toList());
+    await prefs.setString('saved_debts', encoded);
+  }
 
   void addDebt() {
     String nameText = nameController.text.trim();
@@ -61,6 +98,7 @@ class _DebtHomePageState extends State<DebtHomePage> {
       }
     });
 
+    saveDebts(); // حفظ التغييرات
     nameController.clear();
     amountController.clear();
   }
@@ -101,6 +139,7 @@ class _DebtHomePageState extends State<DebtHomePage> {
                   setState(() {
                     debtsList[index].amount += addedAmount;
                   });
+                  saveDebts(); // حفظ التغييرات
                 }
                 Navigator.pop(context);
               },
@@ -151,6 +190,7 @@ class _DebtHomePageState extends State<DebtHomePage> {
                       debtsList.removeAt(index);
                     }
                   });
+                  saveDebts(); // حفظ التغييرات
                 }
                 Navigator.pop(context);
               },
@@ -166,6 +206,7 @@ class _DebtHomePageState extends State<DebtHomePage> {
     setState(() {
       debtsList.removeAt(index);
     });
+    saveDebts(); // حفظ التغييرات
   }
 
   double getTotal() {
@@ -178,4 +219,88 @@ class _DebtHomePageState extends State<DebtHomePage> {
 
   @override
   Widget build(BuildContext context) {
-    return Service Scaffold(  // تم إصلاح السطر ليوافق بنية الواجهة السليمة
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('تسيير ديون المحل'),
+        backgroundColor: Colors.teal,
+      ),
+      body: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          children: [
+            TextField(
+              controller: nameController,
+              decoration: const InputDecoration(
+                labelText: 'اسم الزبون',
+                border: OutlineInputBorder(),
+              ),
+            ),
+            const SizedBox(height: 10),
+            TextField(
+              controller: amountController,
+              keyboardType: TextInputType.number,
+              decoration: const InputDecoration(
+                labelText: 'مبلغ الدين (دج)',
+                border: OutlineInputBorder(),
+              ),
+            ),
+            const SizedBox(height: 15),
+            ElevatedButton(
+              onPressed: addDebt,
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.teal,
+                minimumSize: const Size.fromHeight(45),
+              ),
+              child: const Text('حفظ الدين', style: TextStyle(color: Colors.white, fontSize: 16)),
+            ),
+            const SizedBox(height: 20),
+            Text(
+              'المجموع الكلي: ${getTotal()} دج',
+              style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.teal),
+            ),
+            const Divider(height: 30),
+            Expanded(
+              child: ListView.builder(
+                itemCount: debtsList.length,
+                itemBuilder: (context, index) {
+                  return Card(
+                    child: ListTile(
+                      title: Text(
+                        debtsList[index].name,
+                        style: const TextStyle(fontWeight: FontWeight.bold),
+                      ),
+                      subtitle: Text(
+                        'المتبقي: ${debtsList[index].amount} دج',
+                        style: const TextStyle(color: Colors.red, fontWeight: FontWeight.bold),
+                      ),
+                      trailing: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          IconButton(
+                            icon: const Icon(Icons.add_circle, color: Colors.blue),
+                            tooltip: 'زيادة دين',
+                            onPressed: () => showAddMoreDialog(index),
+                          ),
+                          IconButton(
+                            icon: const Icon(Icons.payment, color: Colors.green),
+                            tooltip: 'تسديد جزء',
+                            onPressed: () => showPayDialog(index),
+                          ),
+                          IconButton(
+                            icon: const Icon(Icons.delete, color: Colors.grey),
+                            tooltip: 'حذف',
+                            onPressed: () => deleteDebt(index),
+                          ),
+                        ],
+                      ),
+                    ),
+                  );
+                },
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
