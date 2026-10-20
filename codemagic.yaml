@@ -9,7 +9,6 @@ workflows:
         script: |
           flutter create . --platforms=android --org com.example.storeapp
           
-          # كتابة ملف build.gradle.kts حديث ونظيف بالكامل مع إعداد SDK 34
           cat << 'EOF' > android/app/build.gradle.kts
           plugins {
               id("com.android.application")
@@ -26,8 +25,10 @@ workflows:
                   targetCompatibility = JavaVersion.VERSION_1_8
               }
 
-              kotlinOptions {
-                  jvmTarget = "1.8"
+              kotlin {
+                  compilerOptions {
+                      jvmTarget = org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_1_8
+                  }
               }
 
               defaultConfig {
