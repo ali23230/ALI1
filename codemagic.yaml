@@ -6,49 +6,25 @@ workflows:
       flutter: stable
     scripts:
       - name: Initialize Android Platform
-        script: flutter create . --platforms=android --org com.example.storeapp
-      - name: Write Clean build.gradle
         script: |
-          mkdir -p android/app
-          cat << 'EOF' > android/app/build.gradle
-          plugins {
-              id "com.android.application"
-              id "kotlin-android"
-              id "dev.flutter.flutter-gradle-plugin"
-          }
-
-          android {
-              namespace "com.example.storeapp"
-              compileSdkVersion 36
-
-              compileOptions {
-                  sourceCompatibility JavaVersion.VERSION_1_8
-                  targetCompatibility JavaVersion.VERSION_1_8
-              }
-
-              kotlinOptions {
-                  jvmTarget = '1.8'
-              }
-
-              defaultConfig {
-                  applicationId "com.example.storeapp"
-                  minSdkVersion flutter.minSdkVersion
-                  targetSdkVersion 36
-                  versionCode flutterVersionCode.toInteger()
-                  versionName flutterVersionName
-              }
-
-              buildTypes {
-                  release {
-                      signingConfig signingConfigs.debug
-                  }
-              }
-          }
-
-          flutter {
-              source '../..'
-          }
-          EOF
+          if [ ! -d "android" ]; then
+            flutter create . --platforms=android --org com.example.storeapp
+          fi
+      - name: Clean and Fix build.gradle.kts using Python
+        script: |
+          python3 -c '
+          import re, os
+          path = "android/app/build.gradle.kts"
+          if os.path.exists(path):
+              with open(path, "r") as f:
+                  content = f.read()
+              # استبدال سطر compileSdk بالكامل بنظافة وبدون تشويه
+              content = re.sub(r"compileSdk\s*=.*", "compileSdk = 36", content)
+              content = re.sub(r"targetSdk\s*=.*", "targetSdk = 36", content)
+              with open(path, "w") as f:
+                  f.write(content)
+              print("Successfully updated SDK to 36")
+          '
       - name: Get Flutter packages
         script: flutter packages get
       - name: Build APK
