@@ -5,16 +5,25 @@ workflows:
     environment:
       flutter: stable
     scripts:
-      - name: Setup Android Only If Missing
+      - name: Setup Android Properly and Fix Main Activity
         script: |
-          if [ ! -d "android" ]; then
-            flutter create . --platforms=android --org com.example.storeapp
-          fi
-      - name: Get Flutter packages
-        script: flutter packages get
-      - name: Force Global SDK 36 for All Subprojects
-        script: |
-          # 1. تعديل ملف التطبيق الرئيسي
+          # 1. إنشاء منصة أندرويد بشكل كامل ونظيف
+          flutter create . --platforms=android --org com.example.storeapp
+          
+          # 2. التأكد من وجود مسار MainActivity لربط تطبيق فلاتر بنجاح
+          mkdir -p android/app/src/main/java/com/example/store_app
+          
+          # 3. كتابة ملف MainActivity.kt الأساسي لمنع الإغلاق الفوري
+          cat << 'EOF' > android/app/src/main/java/com/example/store_app/MainActivity.kt
+          package com.example.storeapp
+
+          import io.flutter.embedding.android.FlutterActivity
+
+          class MainActivity: FlutterActivity() {
+          }
+          EOF
+
+          # 4. تعديل ملف app/build.gradle.kts بـ SDK 36
           mkdir -p android/app
           cat << 'EOF' > android/app/build.gradle.kts
           plugins {
@@ -58,7 +67,7 @@ workflows:
           }
           EOF
 
-          # 2. إضافة إعدادات جذرية تجبر كل المكاتب (مثل share_plus) على اعتماد SDK 36
+          # 5. ضبط إعدادات جذر المشروع
           cat << 'EOF' > android/build.gradle
           allprojects {
               repositories {
@@ -91,9 +100,10 @@ workflows:
               delete rootProject.buildDir
           }
           EOF
-          echo "Global SDK 36 enforced on all subprojects successfully"
+          echo "Android environment and MainActivity configured successfully"
+      - name: Get Flutter packages
+        script: flutter packages get
       - name: Build APK
         script: flutter build apk --release
     artifacts:
       - build/app/outputs/flutter-apk/*.apk
-     
