@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 
 void main() {
+  // تهيئة بيئة العمل الإجبارية لمنع الإغلاق المفاجئ عند بدء التشغيل
+  WidgetsFlutterBinding.ensureInitialized();
   runApp(const StoreApp());
 }
 
@@ -202,63 +204,4 @@ class _DebtHomePageState extends State<DebtHomePage> {
                 border: OutlineInputBorder(),
               ),
             ),
-            const SizedBox(height: 15),
-            ElevatedButton(
-              onPressed: addDebt,
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.teal,
-                minimumSize: const Size.fromHeight(45),
-              ),
-              child: const Text('حفظ الدين', style: TextStyle(color: Colors.white, fontSize: 16)),
-            ),
-            const SizedBox(height: 20),
-            Text(
-              'المجموع الكلي: ${getTotal()} دج',
-              style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.teal),
-            ),
-            const Divider(height: 30),
-            Expanded(
-              child: ListView.builder(
-                itemCount: debtsList.length,
-                itemBuilder: (context, index) {
-                  return Card(
-                    child: ListTile(
-                      title: Text(
-                        debtsList[index].name,
-                        style: const TextStyle(fontWeight: FontWeight.bold),
-                      ),
-                      subtitle: Text(
-                        'المتبقي: ${debtsList[index].amount} دج',
-                        style: const TextStyle(color: Colors.red, fontWeight: FontWeight.bold),
-                      ),
-                      trailing: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          IconButton(
-                            icon: const Icon(Icons.add_circle, color: Colors.blue),
-                            tooltip: 'زيادة دين',
-                            onPressed: () => showAddMoreDialog(index),
-                          ),
-                          IconButton(
-                            icon: const Icon(Icons.payment, color: Colors.green),
-                            tooltip: 'تسديد جزء',
-                            onPressed: () => showPayDialog(index),
-                          ),
-                          IconButton(
-                            icon: const Icon(Icons.delete, color: Colors.grey),
-                            tooltip: 'حذف',
-                            onPressed: () => deleteDebt(index),
-                          ),
-                        ],
-                      ),
-                    ),
-                  );
-                },
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
+            const
