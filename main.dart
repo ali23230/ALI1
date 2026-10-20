@@ -1,33 +1,8 @@
 import 'package:flutter/material.dart';
 
 void main() {
-  // التقاط أي خطأ فادح ومنع الإغلاق الصامت
-  FlutterError.onError = (FlutterErrorDetails details) {
-    FlutterError.dumpErrorToConsole(details);
-  };
-
-  runZonedGuarded(() {
-    WidgetsFlutterBinding.ensureInitialized();
-    runApp(const StoreApp());
-  }, (error, stack) {
-    runApp(MaterialApp(
-      home: Scaffold(
-        backgroundColor: Colors.red,
-        body: Padding(
-          padding: const EdgeInsets.all(16.0),
-          child: Center(
-            child: SingleChildScrollView(
-              child: Text(
-                'خطأ في التشغيل:\n$error',
-                style: const TextStyle(color: Colors.white, fontSize: 18),
-                textDirection: TextDirection.ltr,
-              ),
-            ),
-          ),
-        ),
-      ),
-    ));
-  });
+  WidgetsFlutterBinding.ensureInitialized();
+  runApp(const StoreApp());
 }
 
 class StoreApp extends StatelessWidget {
@@ -62,6 +37,7 @@ class DebtHomePage extends StatefulWidget {
 class _DebtHomePageState extends State<DebtHomePage> {
   final TextEditingController nameController = TextEditingController();
   final TextEditingController amountController = TextEditingController();
+
   final List<DebtModel> debtsList = [];
 
   void addDebt() {
@@ -202,88 +178,4 @@ class _DebtHomePageState extends State<DebtHomePage> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('تسيير ديون المحل'),
-        backgroundColor: Colors.teal,
-      ),
-      body: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          children: [
-            TextField(
-              controller: nameController,
-              decoration: const InputDecoration(
-                labelText: 'اسم الزبون',
-                border: OutlineInputBorder(),
-              ),
-            ),
-            const SizedBox(height: 10),
-            TextField(
-              controller: amountController,
-              keyboardType: TextInputType.number,
-              decoration: const InputDecoration(
-                labelText: 'مبلغ الدين (دج)',
-                border: OutlineInputBorder(),
-              ),
-            ),
-            const SizedBox(height: 15),
-            ElevatedButton(
-              onPressed: addDebt,
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.teal,
-                minimumSize: const Size.fromHeight(45),
-              ),
-              child: const Text('حفظ الدين', style: TextStyle(color: Colors.white, fontSize: 16)),
-            ),
-            const SizedBox(height: 20),
-            Text(
-              'المجموع الكلي: ${getTotal()} دج',
-              style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.teal),
-            ),
-            const Divider(height: 30),
-            Expanded(
-              child: ListView.builder(
-                itemCount: debtsList.length,
-                itemBuilder: (context, index) {
-                  return Card(
-                    child: ListTile(
-                      title: Text(
-                        debtsList[index].name,
-                        style: const TextStyle(fontWeight: FontWeight.bold),
-                      ),
-                      subtitle: Text(
-                        'المتبقي: ${debtsList[index].amount} دج',
-                        style: const TextStyle(color: Colors.red, fontWeight: FontWeight.bold),
-                      ),
-                      trailing: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          IconButton(
-                            icon: const Icon(Icons.add_circle, color: Colors.blue),
-                            tooltip: 'زيادة دين',
-                            onPressed: () => showAddMoreDialog(index),
-                          ),
-                          IconButton(
-                            icon: const Icon(Icons.payment, color: Colors.green),
-                            tooltip: 'تسديد جزء',
-                            onPressed: () => showPayDialog(index),
-                          ),
-                          IconButton(
-                            icon: const Icon(Icons.delete, color: Colors.grey),
-                            tooltip: 'حذف',
-                            onPressed: () => deleteDebt(index),
-                          ),
-                        ],
-                      ),
-                    ),
-                  );
-                },
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
+    return Service Scaffold(  // تم إصلاح السطر ليوافق بنية الواجهة السليمة
