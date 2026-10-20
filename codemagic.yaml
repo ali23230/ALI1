@@ -5,7 +5,7 @@ workflows:
     environment:
       flutter: stable
     scripts:
-      - name: Initialize Android Platform and Set SDK
+      - name: Initialize Android Platform and Set SDK 36
         script: |
           flutter create . --platforms=android --org com.example.storeapp
           
@@ -18,7 +18,7 @@ workflows:
 
           android {
               namespace = "com.example.storeapp"
-              compileSdk = 34
+              compileSdk = 36
 
               compileOptions {
                   sourceCompatibility = JavaVersion.VERSION_1_8
@@ -34,7 +34,7 @@ workflows:
               defaultConfig {
                   applicationId = "com.example.storeapp"
                   minSdk = flutter.minSdkVersion
-                  targetSdk = 34
+                  targetSdk = 36
                   versionCode = flutter.versionCode.toInt()
                   versionName = flutter.versionName
               }
