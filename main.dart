@@ -47,6 +47,7 @@ class _DebtHomePageState extends State<DebtHomePage> {
   final TextEditingController amountController = TextEditingController();
 
   List<DebtModel> debtsList = [];
+  bool isLoading = true;
 
   @override
   void initState() {
@@ -54,7 +55,7 @@ class _DebtHomePageState extends State<DebtHomePage> {
     loadDebts();
   }
 
-  // تحميل البيانات المحفوظة بطريقة مضمونة
+  // تحميل البيانات المحفوظة والانتظار حتى تنتهي
   Future<void> loadDebts() async {
     final prefs = await SharedPreferences.getInstance();
     List<String>? names = prefs.getStringList('saved_names');
@@ -73,9 +74,12 @@ class _DebtHomePageState extends State<DebtHomePage> {
         }
       });
     }
+    setState(() {
+      isLoading = false;
+    });
   }
 
-  // حفظ البيانات فوراً وبشكل منفصل لمنع أي ضياع
+  // حفظ البيانات والانتظار حتى يتم تثبيتها في الذاكرة تماماً
   Future<void> saveDebts() async {
     final prefs = await SharedPreferences.getInstance();
     List<String> names = debtsList.map((e) => e.name).toList();
@@ -87,7 +91,7 @@ class _DebtHomePageState extends State<DebtHomePage> {
     await prefs.setStringList('saved_dates', dates);
   }
 
-  void addDebt() {
+  Future<void> addDebt() async {
     String nameText = nameController.text.trim();
     String amountText = amountController.text.trim();
 
@@ -113,15 +117,15 @@ class _DebtHomePageState extends State<DebtHomePage> {
       }
     });
 
-    saveDebts(); // حفظ فوري
+    await saveDebts(); // الانتظار حتى يتم الحفظ في الذاكرة بقوة
     nameController.clear();
     amountController.clear();
   }
 
-  void showAddMoreDialog(int index) {
+  Future<void> showAddMoreDialog(int index) async {
     final TextEditingController addController = TextEditingController();
 
-    showDialog(
+    await showDialog(
       context: context,
       builder: (context) {
         return AlertDialog(
@@ -148,14 +152,14 @@ class _DebtHomePageState extends State<DebtHomePage> {
             ),
             ElevatedButton(
               style: ElevatedButton.styleFrom(backgroundColor: Colors.blue),
-              onPressed: () {
+              onPressed: () async {
                 double? addedAmount = double.tryParse(addController.text.trim());
                 if (addedAmount != null && addedAmount > 0) {
                   setState(() {
                     debtsList[index].amount += addedAmount;
                     debtsList[index].lastUpdated = DateTime.now();
                   });
-                  saveDebts();
+                  await saveDebts();
                 }
                 Navigator.pop(context);
               },
@@ -167,10 +171,10 @@ class _DebtHomePageState extends State<DebtHomePage> {
     );
   }
 
-  void showPayDialog(int index) {
+  Future<void> showPayDialog(int index) async {
     final TextEditingController payController = TextEditingController();
 
-    showDialog(
+    await showDialog(
       context: context,
       builder: (context) {
         return AlertDialog(
@@ -197,7 +201,7 @@ class _DebtHomePageState extends State<DebtHomePage> {
             ),
             ElevatedButton(
               style: ElevatedButton.styleFrom(backgroundColor: Colors.teal),
-              onPressed: () {
+              onPressed: () async {
                 double? paidAmount = double.tryParse(payController.text.trim());
                 if (paidAmount != null && paidAmount > 0) {
                   setState(() {
@@ -207,7 +211,7 @@ class _DebtHomePageState extends State<DebtHomePage> {
                       debtsList.removeAt(index);
                     }
                   });
-                  saveDebts();
+                  await saveDebts();
                 }
                 Navigator.pop(context);
               },
@@ -219,11 +223,11 @@ class _DebtHomePageState extends State<DebtHomePage> {
     );
   }
 
-  void deleteDebt(int index) {
+  Future<void> deleteDebt(int index) async {
     setState(() {
       debtsList.removeAt(index);
     });
-    saveDebts();
+    await saveDebts();
   }
 
   void shareDebt(DebtModel debt) {
@@ -247,99 +251,103 @@ class _DebtHomePageState extends State<DebtHomePage> {
         title: const Text('تسيير ديون المحل'),
         backgroundColor: Colors.teal,
       ),
-      body: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          children: [
-            TextField(
-              controller: nameController,
-              decoration: const InputDecoration(
-                labelText: 'اسم الزبون',
-                border: OutlineInputBorder(),
-              ),
-            ),
-            const SizedBox(height: 10),
-            TextField(
-              controller: amountController,
-              keyboardType: TextInputType.number,
-              decoration: const InputDecoration(
-                labelText: 'مبلغ الدين (دج)',
-                border: OutlineInputBorder(),
-              ),
-            ),
-            const SizedBox(height: 15),
-            ElevatedButton(
-              onPressed: addDebt,
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.teal,
-                minimumSize: const Size.fromHeight(45),
-              ),
-              child: const Text('حفظ الدين', style: TextStyle(color: Colors.white, fontSize: 16)),
-            ),
-            const SizedBox(height: 20),
-            Text(
-              'المجموع الكلي: ${getTotal()} دج',
-              style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.teal),
-            ),
-            const Divider(height: 30),
-            Expanded(
-              child: ListView.builder(
-                itemCount: debtsList.length,
-                itemBuilder: (context, index) {
-                  final debt = debtsList[index];
-                  String dateFormatted = intl.DateFormat('yyyy/MM/dd HH:mm').format(debt.lastUpdated);
-                  return Card(
-                    child: ListTile(
-                      title: Text(
-                        debt.name,
-                        style: const TextStyle(fontWeight: FontWeight.bold),
-                      ),
-                      subtitle: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            'المتبقي: ${debt.amount} دج',
-                            style: const TextStyle(color: Colors.red, fontWeight: FontWeight.bold),
-                          ),
-                          Text(
-                            'التاريخ: $dateFormatted',
-                            style: const TextStyle(fontSize: 12, color: Colors.grey),
-                          ),
-                        ],
-                      ),
-                      trailing: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          IconButton(
-                            icon: const Icon(Icons.share, color: Colors.orange),
-                            tooltip: 'مشاركة',
-                            onPressed: () => shareDebt(debt),
-                          ),
-                          IconButton(
-                            icon: const Icon(Icons.add_circle, color: Colors.blue),
-                            tooltip: 'زيادة دين',
-                            onPressed: () => showAddMoreDialog(index),
-                          ),
-                          IconButton(
-                            icon: const Icon(Icons.payment, color: Colors.green),
-                            tooltip: 'تسديد جزء',
-                            onPressed: () => showPayDialog(index),
-                          ),
-                          IconButton(
-                            icon: const Icon(Icons.delete, color: Colors.grey),
-                            tooltip: 'حذف',
-                            onPressed: () => deleteDebt(index),
-                          ),
-                        ],
-                      ),
+      body: isLoading
+          ? const Center(child: CircularProgressIndicator())
+          : Padding(
+              padding: const EdgeInsets.all(16.0),
+              child: Column(
+                children: [
+                  TextField(
+                    controller: nameController,
+                    decoration: const InputDecoration(
+                      labelText: 'اسم الزبون',
+                      border: OutlineInputBorder(),
                     ),
-                  );
-                },
+                  ),
+                  const SizedBox(height: 10),
+                  TextField(
+                    controller: amountController,
+                    keyboardType: TextInputType.number,
+                    decoration: const InputDecoration(
+                      labelText: 'مبلغ الدين (دج)',
+                      border: OutlineInputBorder(),
+                    ),
+                  ),
+                  const SizedBox(height: 15),
+                  ElevatedButton(
+                    onPressed: addDebt,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.teal,
+                      minimumSize: const Size.fromHeight(45),
+                    ),
+                    child: const Text('حفظ الدين', style: TextStyle(color: Colors.white, fontSize: 16)),
+                  ),
+                  const SizedBox(height: 20),
+                  Text(
+                    'المجموع الكلي: ${getTotal()} دج',
+                    style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.teal),
+                  ),
+                  const Divider(height: 30),
+                  Expanded(
+                    child: debtsList.isEmpty
+                        ? const Center(child: Text('لا توجد ديون مسجلة حالياً'))
+                        : ListView.builder(
+                            itemCount: debtsList.length,
+                            itemBuilder: (context, index) {
+                              final debt = debtsList[index];
+                              String dateFormatted = intl.DateFormat('yyyy/MM/dd HH:mm').format(debt.lastUpdated);
+                              return Card(
+                                child: ListTile(
+                                  title: Text(
+                                    debt.name,
+                                    style: const TextStyle(fontWeight: FontWeight.bold),
+                                  ),
+                                  subtitle: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        'المتبقي: ${debt.amount} دج',
+                                        style: const TextStyle(color: Colors.red, fontWeight: FontWeight.bold),
+                                      ),
+                                      Text(
+                                        'التاريخ: $dateFormatted',
+                                        style: const TextStyle(fontSize: 12, color: Colors.grey),
+                                      ),
+                                    ],
+                                  ),
+                                  trailing: Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      IconButton(
+                                        icon: const Icon(Icons.share, color: Colors.orange),
+                                        tooltip: 'مشاركة',
+                                        onPressed: () => shareDebt(debt),
+                                      ),
+                                      IconButton(
+                                        icon: const Icon(Icons.add_circle, color: Colors.blue),
+                                        tooltip: 'زيادة دين',
+                                        onPressed: () => showAddMoreDialog(index),
+                                      ),
+                                      IconButton(
+                                        icon: const Icon(Icons.payment, color: Colors.green),
+                                        tooltip: 'تسديد جزء',
+                                        onPressed: () => showPayDialog(index),
+                                      ),
+                                      IconButton(
+                                        icon: const Icon(Icons.delete, color: Colors.grey),
+                                        tooltip: 'حذف',
+                                        onPressed: () => deleteDebt(index),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              );
+                            },
+                          ),
+                  ),
+                ],
               ),
             ),
-          ],
-        ),
-      ),
     );
   }
 }
