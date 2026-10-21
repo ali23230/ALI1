@@ -18,7 +18,7 @@ class StoreApp extends StatelessWidget {
     return MaterialApp(
       debugShowCheckedModeBanner: false,
       home: Directionality(
-        textDirection: TextDirection.rightToLeft,
+        textDirection: TextDirection.rtl,
         child: const DebtHomePage(),
       ),
     );
@@ -107,7 +107,7 @@ class _DebtHomePageState extends State<DebtHomePage> {
     }
   }
 
-    Future<void> addDebt() async {
+  Future<void> addDebt() async {
     String nameText = nameController.text.trim();
     String amountText = amountController.text.trim();
 
