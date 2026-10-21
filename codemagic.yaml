@@ -5,12 +5,12 @@ workflows:
     environment:
       flutter: stable
     scripts:
-      - name: Generate Persistent Keystore & Setup Android
+      - name: Setup Android Properly with Persistent Data Support
         script: |
           # 1. إنشاء منصة أندرويد
           flutter create . --platforms=android --org com.example.storeapp
           
-          # 2. إنشاء مفتاح توقيع رقمي ثابت بدلاً من المفتاح العشوائي
+          # 2. إنشاء مفتاح توقيع رقمي موحد ومستقر
           keytool -genkey -v -keystore android/app/key.jks -keyalg RSA -keysize 2048 -validity 10000 -alias key -storepass store123 -keypass store123 -dname "CN=StoreApp, OU=Dev, O=Store, L=Annaba, C=DZ"
 
           # 3. إنشاء MainActivity.kt
@@ -24,7 +24,37 @@ workflows:
           }
           EOF
 
-          # 4. ضبط build.gradle.kts لاستخدام مفتاح التوقيع الثابت
+          # 4. إعداد AndroidManifest لمنع مسح البيانات نهائياً عند الإغلاق
+          cat << 'EOF' > android/app/src/main/AndroidManifest.xml
+          <manifest xmlns:android="http://schemas.android.com/apk/res/android">
+              <application
+                  android:label="Store App"
+                  android:name="${applicationName}"
+                  android:icon="@mipmap/ic_launcher"
+                  android:allowBackup="true"
+                  android:hasFragileUserData="true"
+                  android:keepScreenOn="true">
+                  <meta-data
+                      android:name="flutterEmbedding"
+                      android:value="2" />
+                  <activity
+                      android:name=".MainActivity"
+                      android:exported="true"
+                      android:launchMode="singleTop"
+                      android:theme="@style/LaunchTheme"
+                      android:configChanges="orientation|keyboardHidden|keyboard|screenSize|smallestScreenSize|locale|layoutDirection|fontScale|screenLayout|density|uiMode"
+                      android:hardwareAccelerated="true"
+                      android:windowSoftInputMode="adjustResize">
+                      <intent-filter>
+                          <action android:name="android.intent.action.MAIN"/>
+                          <category android:name="android.intent.category.LAUNCHER"/>
+                      </intent-filter>
+                  </activity>
+              </application>
+          </manifest>
+          EOF
+
+          # 5. ضبط build.gradle.kts للمفتاح الثابت
           mkdir -p android/app
           cat << 'EOF' > android/app/build.gradle.kts
           plugins {
@@ -77,7 +107,7 @@ workflows:
           }
           EOF
 
-          # 5. ضبط إعدادات جذر المشروع
+          # 6. ضبط إعدادات جذر المشروع
           cat << 'EOF' > android/build.gradle
           allprojects {
               repositories {
@@ -110,7 +140,7 @@ workflows:
               delete rootProject.buildDir
           }
           EOF
-          echo "Persistent signing keystore created successfully"
+          echo "Android configuration completed"
       - name: Get Flutter packages
         script: flutter packages get
       - name: Build APK
