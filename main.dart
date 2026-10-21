@@ -5,7 +5,7 @@ import 'package:path_provider/path_provider.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:intl/intl' as intl;
 
-void main() {
+void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   runApp(const StoreApp());
 }
@@ -43,9 +43,11 @@ class DebtModel {
       };
 
   factory DebtModel.fromJson(Map<String, dynamic> json) => DebtModel(
-        name: json['name'],
-        amount: (json['amount'] as num).toDouble(),
-        lastUpdated: DateTime.parse(json['lastUpdated']),
+        name: json['name'] ?? '',
+        amount: (json['amount'] as num?)?.toDouble() ?? 0.0,
+        lastUpdated: json['lastUpdated'] != null 
+            ? DateTime.parse(json['lastUpdated']) 
+            : DateTime.now(),
       );
 }
 
@@ -66,42 +68,49 @@ class _DebtHomePageState extends State<DebtHomePage> {
   @override
   void initState() {
     super.initState();
-    loadDebtsFromFile();
+    _initData();
   }
 
-  // الحصول على مسار الملف الداخلي الآمن
-  Future<File> get _localFile async {
-    final directory = await getApplicationDocumentsDirectory();
-    return File('${directory.path}/store_debts.json');
+  Future<void> _initData() async {
+    await loadDebtsFromFile();
   }
 
-  // قراءة الديون مباشرة من الملف الداخلي
+  // الحصول على ملف التخزين الدائم في مسار التطبيق المحمي
+  Future<File> getLocalFile() async {
+    final directory = await getApplicationSupportDirectory();
+    return File('${directory.path}/store_debts_v2.json');
+  }
+
+  // قراءة البيانات
   Future<void> loadDebtsFromFile() async {
     try {
-      final file = await _localFile;
+      final file = await getLocalFile();
       if (await file.exists()) {
         final contents = await file.readAsString();
-        final List decoded = jsonDecode(contents);
-        setState(() {
-          debtsList = decoded.map((item) => DebtModel.fromJson(item)).toList();
-        });
+        if (contents.isNotEmpty) {
+          final List decoded = jsonDecode(contents);
+          setState(() {
+            debtsList = decoded.map((item) => DebtModel.fromJson(item)).toList();
+          });
+        }
       }
     } catch (e) {
-      debugPrint("Error reading file: $e");
+      debugPrint("Read error: $e");
+    } finally {
+      setState(() {
+        isLoading = false;
+      });
     }
-    setState(() {
-      isLoading = false;
-    });
   }
 
-  // كتابة وحفظ الديون مباشرة في ملف نصي دائم
+  // حفظ البيانات بشكل فوري وتزامني
   Future<void> saveDebtsToFile() async {
     try {
-      final file = await _localFile;
+      final file = await getLocalFile();
       final String encoded = jsonEncode(debtsList.map((e) => e.toJson()).toList());
-      await file.writeAsString(encoded);
+      await file.writeAsString(encoded, flush: true);
     } catch (e) {
-      debugPrint("Error writing file: $e");
+      debugPrint("Write error: $e");
     }
   }
 
@@ -114,11 +123,11 @@ class _DebtHomePageState extends State<DebtHomePage> {
     double? parsedAmount = double.tryParse(amountText);
     if (parsedAmount == null) return;
 
-    int existingIndex = debtsList.indexWhere(
-      (item) => item.name.trim().toLowerCase() == nameText.toLowerCase(),
-    );
-
     setState(() {
+      int existingIndex = debtsList.indexWhere(
+        (item) => item.name.trim().toLowerCase() == nameText.toLowerCase(),
+      );
+
       if (existingIndex != -1) {
         debtsList[existingIndex].amount += parsedAmount;
         debtsList[existingIndex].lastUpdated = DateTime.now();
