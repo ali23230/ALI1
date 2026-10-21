@@ -17,10 +17,9 @@ class StoreApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MaterialApp(
       debugShowCheckedModeBanner: false,
-      home: Directionality(
-        textDirection: TextDirection.rtl,
-        child: const DebtHomePage(),
-      ),
+      // ضبط اللغة بالعربية يفرض اتجاه التطبيق يمين ليسار (RTL) تلقائياً وبأمان تام
+      locale: const Locale('ar'),
+      home: const DebtHomePage(),
     );
   }
 }
