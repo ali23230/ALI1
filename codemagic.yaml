@@ -7,14 +7,12 @@ workflows:
     scripts:
       - name: Setup Android Properly and Fix Main Activity
         script: |
-          # 1. إنشاء منصة أندرويد بشكل كامل ونظيف
+          # 1. إنشاء منصة أندرويد
           flutter create . --platforms=android --org com.example.storeapp
           
-          # 2. التأكد من وجود مسار MainActivity لربط تطبيق فلاتر بنجاح
-          mkdir -p android/app/src/main/java/com/example/store_app
-          
-          # 3. كتابة ملف MainActivity.kt الأساسي لمنع الإغلاق الفوري
-          cat << 'EOF' > android/app/src/main/java/com/example/store_app/MainActivity.kt
+          # 2. إنشاء MainActivity.kt
+          mkdir -p android/app/src/main/java/com/example/storeapp
+          cat << 'EOF' > android/app/src/main/java/com/example/storeapp/MainActivity.kt
           package com.example.storeapp
 
           import io.flutter.embedding.android.FlutterActivity
@@ -23,7 +21,36 @@ workflows:
           }
           EOF
 
-          # 4. تعديل ملف app/build.gradle.kts بـ SDK 36
+          # 3. إعداد AndroidManifest لتضمين الحفظ الدائم
+          cat << 'EOF' > android/app/src/main/AndroidManifest.xml
+          <manifest xmlns:android="http://schemas.android.com/apk/res/android">
+              <application
+                  android:label="Store App"
+                  android:name="${applicationName}"
+                  android:icon="@mipmap/ic_launcher"
+                  android:allowBackup="true"
+                  android:fullBackupOnly="false">
+                  <meta-data
+                      android:name="flutterEmbedding"
+                      android:value="2" />
+                  <activity
+                      android:name=".MainActivity"
+                      android:exported="true"
+                      android:launchMode="singleTop"
+                      android:theme="@style/LaunchTheme"
+                      android:configChanges="orientation|keyboardHidden|keyboard|screenSize|smallestScreenSize|locale|layoutDirection|fontScale|screenLayout|density|uiMode"
+                      android:hardwareAccelerated="true"
+                      android:windowSoftInputMode="adjustResize">
+                      <intent-filter>
+                          <action android:name="android.intent.action.MAIN"/>
+                          <category android:name="android.intent.category.LAUNCHER"/>
+                      </intent-filter>
+                  </activity>
+              </application>
+          </manifest>
+          EOF
+
+          # 4. تعديل build.gradle.kts
           mkdir -p android/app
           cat << 'EOF' > android/app/build.gradle.kts
           plugins {
@@ -51,8 +78,8 @@ workflows:
                   applicationId = "com.example.storeapp"
                   minSdk = flutter.minSdkVersion
                   targetSdk = 36
-                  versionCode = flutter.versionCode.toInt()
-                  versionName = flutter.versionName
+                  versionCode = 1
+                  versionName = "1.0"
               }
 
               buildTypes {
@@ -67,7 +94,7 @@ workflows:
           }
           EOF
 
-          # 5. ضبط إعدادات جذر المشروع
+          # 5. ضبط build.gradle للجذر
           cat << 'EOF' > android/build.gradle
           allprojects {
               repositories {
@@ -100,7 +127,7 @@ workflows:
               delete rootProject.buildDir
           }
           EOF
-          echo "Android environment and MainActivity configured successfully"
+          echo "Android manifest and configurations set successfully"
       - name: Get Flutter packages
         script: flutter packages get
       - name: Build APK
