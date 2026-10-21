@@ -5,13 +5,16 @@ workflows:
     environment:
       flutter: stable
     scripts:
-      - name: Generate Persistent Keystore & Setup Android
+      - name: Initialize Android & Keystore
         script: |
-          # 1. إنشاء مفتاح توقيع رقمي ثابت تلقائياً
+          # 1. إنشاء ملفات أندرويد نظيفة وحديثة بالكامل
+          flutter create . --platforms=android --org com.example.storeapp
+          
+          # 2. إنشاء مفتاح توقيع رقمي ثابت
           mkdir -p android/app
           keytool -genkey -v -keystore android/app/key.jks -keyalg RSA -keysize 2048 -validity 10000 -alias key -storepass store123 -keypass store123 -dname "CN=StoreApp, OU=Dev, O=Store, L=Annaba, C=DZ"
 
-          # 2. إعداد التوقيع في ملف الإعدادات
+          # 3. إعداد build.gradle.kts للتوقيع
           cat << 'EOF' > android/app/build.gradle.kts
           plugins {
               id("com.android.application")
@@ -21,7 +24,7 @@ workflows:
 
           android {
               namespace = "com.example.storeapp"
-              compileSdk = 36
+              compileSdk = 35
 
               signingConfigs {
                   create("release") {
@@ -35,7 +38,7 @@ workflows:
               defaultConfig {
                   applicationId = "com.example.storeapp"
                   minSdk = flutter.minSdkVersion
-                  targetSdk = 36
+                  targetSdk = 35
                   versionCode = 1
                   versionName = "1.0"
               }
@@ -46,6 +49,7 @@ workflows:
                   }
               }
           }
+
           flutter {
               source = "../.."
           }
