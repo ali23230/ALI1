@@ -1,5 +1,7 @@
+import 'dart:io';
+import 'dart:convert';
 import 'package:flutter/material.dart';
-import 'package:shared_preferences/shared_preferences.dart';
+import 'package:path_provider/path_provider.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:intl/intl' as intl;
 
@@ -33,6 +35,18 @@ class DebtModel {
     required this.amount,
     required this.lastUpdated,
   });
+
+  Map<String, dynamic> toJson() => {
+        'name': name,
+        'amount': amount,
+        'lastUpdated': lastUpdated.toIso8601String(),
+      };
+
+  factory DebtModel.fromJson(Map<String, dynamic> json) => DebtModel(
+        name: json['name'],
+        amount: (json['amount'] as num).toDouble(),
+        lastUpdated: DateTime.parse(json['lastUpdated']),
+      );
 }
 
 class DebtHomePage extends StatefulWidget {
@@ -52,43 +66,43 @@ class _DebtHomePageState extends State<DebtHomePage> {
   @override
   void initState() {
     super.initState();
-    loadDebts();
+    loadDebtsFromFile();
   }
 
-  // تحميل البيانات المحفوظة والانتظار حتى تنتهي
-  Future<void> loadDebts() async {
-    final prefs = await SharedPreferences.getInstance();
-    List<String>? names = prefs.getStringList('saved_names');
-    List<String>? amounts = prefs.getStringList('saved_amounts');
-    List<String>? dates = prefs.getStringList('saved_dates');
+  // الحصول على مسار الملف الداخلي الآمن
+  Future<File> get _localFile async {
+    final directory = await getApplicationDocumentsDirectory();
+    return File('${directory.path}/store_debts.json');
+  }
 
-    if (names != null && amounts != null && names.length == amounts.length) {
-      setState(() {
-        debtsList.clear();
-        for (int i = 0; i < names.length; i++) {
-          double amt = double.tryParse(amounts[i]) ?? 0.0;
-          DateTime dt = dates != null && i < dates.length 
-              ? (DateTime.tryParse(dates[i]) ?? DateTime.now()) 
-              : DateTime.now();
-          debtsList.add(DebtModel(name: names[i], amount: amt, lastUpdated: dt));
-        }
-      });
+  // قراءة الديون مباشرة من الملف الداخلي
+  Future<void> loadDebtsFromFile() async {
+    try {
+      final file = await _localFile;
+      if (await file.exists()) {
+        final contents = await file.readAsString();
+        final List decoded = jsonDecode(contents);
+        setState(() {
+          debtsList = decoded.map((item) => DebtModel.fromJson(item)).toList();
+        });
+      }
+    } catch (e) {
+      debugPrint("Error reading file: $e");
     }
     setState(() {
       isLoading = false;
     });
   }
 
-  // حفظ البيانات والانتظار حتى يتم تثبيتها في الذاكرة تماماً
-  Future<void> saveDebts() async {
-    final prefs = await SharedPreferences.getInstance();
-    List<String> names = debtsList.map((e) => e.name).toList();
-    List<String> amounts = debtsList.map((e) => e.amount.toString()).toList();
-    List<String> dates = debtsList.map((e) => e.lastUpdated.toIso8601String()).toList();
-
-    await prefs.setStringList('saved_names', names);
-    await prefs.setStringList('saved_amounts', amounts);
-    await prefs.setStringList('saved_dates', dates);
+  // كتابة وحفظ الديون مباشرة في ملف نصي دائم
+  Future<void> saveDebtsToFile() async {
+    try {
+      final file = await _localFile;
+      final String encoded = jsonEncode(debtsList.map((e) => e.toJson()).toList());
+      await file.writeAsString(encoded);
+    } catch (e) {
+      debugPrint("Error writing file: $e");
+    }
   }
 
   Future<void> addDebt() async {
@@ -117,7 +131,7 @@ class _DebtHomePageState extends State<DebtHomePage> {
       }
     });
 
-    await saveDebts(); // الانتظار حتى يتم الحفظ في الذاكرة بقوة
+    await saveDebtsToFile();
     nameController.clear();
     amountController.clear();
   }
@@ -159,7 +173,7 @@ class _DebtHomePageState extends State<DebtHomePage> {
                     debtsList[index].amount += addedAmount;
                     debtsList[index].lastUpdated = DateTime.now();
                   });
-                  await saveDebts();
+                  await saveDebtsToFile();
                 }
                 Navigator.pop(context);
               },
@@ -211,7 +225,7 @@ class _DebtHomePageState extends State<DebtHomePage> {
                       debtsList.removeAt(index);
                     }
                   });
-                  await saveDebts();
+                  await saveDebtsToFile();
                 }
                 Navigator.pop(context);
               },
@@ -227,7 +241,7 @@ class _DebtHomePageState extends State<DebtHomePage> {
     setState(() {
       debtsList.removeAt(index);
     });
-    await saveDebts();
+    await saveDebtsToFile();
   }
 
   void shareDebt(DebtModel debt) {
