@@ -1,7 +1,5 @@
-import 'dart:io';
-import 'dart:convert';
 import 'package:flutter/material.dart';
-import 'package:path_provider/path_provider.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:intl/intl' as intl;
 
@@ -41,14 +39,6 @@ class DebtModel {
         'amount': amount,
         'lastUpdated': lastUpdated.toIso8601String(),
       };
-
-  factory DebtModel.fromJson(Map<String, dynamic> json) => DebtModel(
-        name: json['name'] ?? '',
-        amount: (json['amount'] as num?)?.toDouble() ?? 0.0,
-        lastUpdated: json['lastUpdated'] != null 
-            ? DateTime.parse(json['lastUpdated']) 
-            : DateTime.now(),
-      );
 }
 
 class DebtHomePage extends StatefulWidget {
@@ -64,38 +54,46 @@ class _DebtHomePageState extends State<DebtHomePage> {
 
   List<DebtModel> debtsList = [];
   bool isLoading = true;
+  String debugLog = "جاري التحميل...";
 
   @override
   void initState() {
     super.initState();
-    _initData();
+    loadDebts();
   }
 
-  Future<void> _initData() async {
-    await loadDebtsFromFile();
-  }
-
-  // الحصول على ملف التخزين الدائم في مسار التطبيق المحمي
-  Future<File> getLocalFile() async {
-    final directory = await getApplicationSupportDirectory();
-    return File('${directory.path}/store_debts_v2.json');
-  }
-
-  // قراءة البيانات
-  Future<void> loadDebtsFromFile() async {
+  // تحميل البيانات
+  Future<void> loadDebts() async {
+    setState(() {
+      isLoading = true;
+    });
     try {
-      final file = await getLocalFile();
-      if (await file.exists()) {
-        final contents = await file.readAsString();
-        if (contents.isNotEmpty) {
-          final List decoded = jsonDecode(contents);
-          setState(() {
-            debtsList = decoded.map((item) => DebtModel.fromJson(item)).toList();
-          });
+      final prefs = await SharedPreferences.getInstance();
+      List<String>? names = prefs.getStringList('saved_names');
+      List<String>? amounts = prefs.getStringList('saved_amounts');
+      List<String>? dates = prefs.getStringList('saved_dates');
+
+      if (names != null && amounts != null && names.length == amounts.length) {
+        debtsList.clear();
+        for (int i = 0; i < names.length; i++) {
+          double amt = double.tryParse(amounts[i]) ?? 0.0;
+          DateTime dt = dates != null && i < dates.length 
+              ? (DateTime.tryParse(dates[i]) ?? DateTime.now()) 
+              : DateTime.now();
+          debtsList.add(DebtModel(name: names[i], amount: amt, lastUpdated: dt));
         }
+        setState(() {
+          debugLog = "تم استرجاع ${debtsList.length} زبون بنجاح";
+        });
+      } else {
+        setState(() {
+          debugLog = "لا توجد بيانات محفوظة في الذاكرة حالياً";
+        });
       }
     } catch (e) {
-      debugPrint("Read error: $e");
+      setState(() {
+        debugLog = "خطأ أثناء القراءة: $e";
+      });
     } finally {
       setState(() {
         isLoading = false;
@@ -103,14 +101,34 @@ class _DebtHomePageState extends State<DebtHomePage> {
     }
   }
 
-  // حفظ البيانات بشكل فوري وتزامني
-  Future<void> saveDebtsToFile() async {
+  // حفظ البيانات بشكل إجباري ومباشر على القدام
+  Future<bool> saveDebts() async {
     try {
-      final file = await getLocalFile();
-      final String encoded = jsonEncode(debtsList.map((e) => e.toJson()).toList());
-      await file.writeAsString(encoded, flush: true);
+      final prefs = await SharedPreferences.getInstance();
+      List<String> names = debtsList.map((e) => e.name).toList();
+      List<String> amounts = debtsList.map((e) => e.amount.toString()).toList();
+      List<String> dates = debtsList.map((e) => e.lastUpdated.toIso8601String()).toList();
+
+      bool res1 = await prefs.setStringList('saved_names', names);
+      bool res2 = await prefs.setStringList('saved_amounts', amounts);
+      bool res3 = await prefs.setStringList('saved_dates', dates);
+
+      bool success = res1 && res2 && res3;
+      
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(success ? "تم الحفظ بنجاح في ذاكرة الهاتف!" : "فشل الحفظ في القرص!"),
+          backgroundColor: success ? Colors.green : Colors.red,
+          duration: const Duration(seconds: 2),
+        ),
+      );
+
+      return success;
     } catch (e) {
-      debugPrint("Write error: $e");
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text("حدث خطأ أثناء الحفظ: $e"), backgroundColor: Colors.red),
+      );
+      return false;
     }
   }
 
@@ -140,117 +158,9 @@ class _DebtHomePageState extends State<DebtHomePage> {
       }
     });
 
-    await saveDebtsToFile();
+    await saveDebts();
     nameController.clear();
     amountController.clear();
-  }
-
-  Future<void> showAddMoreDialog(int index) async {
-    final TextEditingController addController = TextEditingController();
-
-    await showDialog(
-      context: context,
-      builder: (context) {
-        return AlertDialog(
-          title: Text('زيادة دين: ${debtsList[index].name}'),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text('الدين الحالي: ${debtsList[index].amount} دج'),
-              const SizedBox(height: 10),
-              TextField(
-                controller: addController,
-                keyboardType: TextInputType.number,
-                decoration: const InputDecoration(
-                  labelText: 'المبلغ المضاف (دج)',
-                  border: OutlineInputBorder(),
-                ),
-              ),
-            ],
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text('إلغاء'),
-            ),
-            ElevatedButton(
-              style: ElevatedButton.styleFrom(backgroundColor: Colors.blue),
-              onPressed: () async {
-                double? addedAmount = double.tryParse(addController.text.trim());
-                if (addedAmount != null && addedAmount > 0) {
-                  setState(() {
-                    debtsList[index].amount += addedAmount;
-                    debtsList[index].lastUpdated = DateTime.now();
-                  });
-                  await saveDebtsToFile();
-                }
-                Navigator.pop(context);
-              },
-              child: const Text('إضافة الدين', style: TextStyle(color: Colors.white)),
-            ),
-          ],
-        );
-      },
-    );
-  }
-
-  Future<void> showPayDialog(int index) async {
-    final TextEditingController payController = TextEditingController();
-
-    await showDialog(
-      context: context,
-      builder: (context) {
-        return AlertDialog(
-          title: Text('تسديد دين: ${debtsList[index].name}'),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text('الدين الحالي: ${debtsList[index].amount} دج'),
-              const SizedBox(height: 10),
-              TextField(
-                controller: payController,
-                keyboardType: TextInputType.number,
-                decoration: const InputDecoration(
-                  labelText: 'المبلغ المدفوع (دج)',
-                  border: OutlineInputBorder(),
-                ),
-              ),
-            ],
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text('إلغاء'),
-            ),
-            ElevatedButton(
-              style: ElevatedButton.styleFrom(backgroundColor: Colors.teal),
-              onPressed: () async {
-                double? paidAmount = double.tryParse(payController.text.trim());
-                if (paidAmount != null && paidAmount > 0) {
-                  setState(() {
-                    debtsList[index].amount -= paidAmount;
-                    debtsList[index].lastUpdated = DateTime.now();
-                    if (debtsList[index].amount <= 0) {
-                      debtsList.removeAt(index);
-                    }
-                  });
-                  await saveDebtsToFile();
-                }
-                Navigator.pop(context);
-              },
-              child: const Text('خصم المبلغ', style: TextStyle(color: Colors.white)),
-            ),
-          ],
-        );
-      },
-    );
-  }
-
-  Future<void> deleteDebt(int index) async {
-    setState(() {
-      debtsList.removeAt(index);
-    });
-    await saveDebtsToFile();
   }
 
   void shareDebt(DebtModel debt) {
@@ -273,6 +183,13 @@ class _DebtHomePageState extends State<DebtHomePage> {
       appBar: AppBar(
         title: const Text('تسيير ديون المحل'),
         backgroundColor: Colors.teal,
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.refresh),
+            tooltip: 'إعادة قراءة الذاكرة',
+            onPressed: loadDebts,
+          )
+        ],
       ),
       body: isLoading
           ? const Center(child: CircularProgressIndicator())
@@ -280,6 +197,18 @@ class _DebtHomePageState extends State<DebtHomePage> {
               padding: const EdgeInsets.all(16.0),
               child: Column(
                 children: [
+                  // شريط العرض والتشخيص
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(8),
+                    color: Colors.amber.shade100,
+                    child: Text(
+                      "حالة الذاكرة: $debugLog",
+                      style: const TextStyle(fontSize: 12, color: Colors.black87),
+                      textAlign: TextAlign.center,
+                    ),
+                  ),
+                  const SizedBox(height: 10),
                   TextField(
                     controller: nameController,
                     decoration: const InputDecoration(
@@ -338,30 +267,9 @@ class _DebtHomePageState extends State<DebtHomePage> {
                                       ),
                                     ],
                                   ),
-                                  trailing: Row(
-                                    mainAxisSize: MainAxisSize.min,
-                                    children: [
-                                      IconButton(
-                                        icon: const Icon(Icons.share, color: Colors.orange),
-                                        tooltip: 'مشاركة',
-                                        onPressed: () => shareDebt(debt),
-                                      ),
-                                      IconButton(
-                                        icon: const Icon(Icons.add_circle, color: Colors.blue),
-                                        tooltip: 'زيادة دين',
-                                        onPressed: () => showAddMoreDialog(index),
-                                      ),
-                                      IconButton(
-                                        icon: const Icon(Icons.payment, color: Colors.green),
-                                        tooltip: 'تسديد جزء',
-                                        onPressed: () => showPayDialog(index),
-                                      ),
-                                      IconButton(
-                                        icon: const Icon(Icons.delete, color: Colors.grey),
-                                        tooltip: 'حذف',
-                                        onPressed: () => deleteDebt(index),
-                                      ),
-                                    ],
+                                  trailing: IconButton(
+                                    icon: const Icon(Icons.share, color: Colors.orange),
+                                    onPressed: () => shareDebt(debt),
                                   ),
                                 ),
                               );
