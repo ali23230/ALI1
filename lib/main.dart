@@ -3,7 +3,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:share_plus/share_plus.dart';
-import 'package:intl/intl' as intl;
+import 'package:intl/intl.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -71,7 +71,6 @@ class _DebtHomePageState extends State<DebtHomePage> {
     loadFromFile();
   }
 
-  // مسار الـ Support المحمي من المسح في أندرويد
   Future<File> getSecureFile() async {
     final dir = await getApplicationSupportDirectory();
     return File('${dir.path}/debts_data_v3.json');
@@ -102,7 +101,6 @@ class _DebtHomePageState extends State<DebtHomePage> {
     try {
       final file = await getSecureFile();
       final encoded = jsonEncode(debtsList.map((e) => e.toJson()).toList());
-      // الحفظ الفوري المباشر على القرص مع flush تزامني
       await file.writeAsString(encoded, flush: true);
     } catch (e) {
       debugPrint("Saving error: $e");
@@ -148,7 +146,7 @@ class _DebtHomePageState extends State<DebtHomePage> {
   }
 
   void shareDebt(DebtModel debt) {
-    String dateFormatted = intl.DateFormat('yyyy/MM/dd HH:mm').format(debt.lastUpdated);
+    String dateFormatted = DateFormat('yyyy/MM/dd HH:mm').format(debt.lastUpdated);
     String message = 'تفاصيل الدين:\nالزبون: ${debt.name}\nالمبلغ المتبقي: ${debt.amount} دج\nآخر تحديث: $dateFormatted';
     Share.share(message);
   }
@@ -212,7 +210,7 @@ class _DebtHomePageState extends State<DebtHomePage> {
                             itemCount: debtsList.length,
                             itemBuilder: (context, index) {
                               final debt = debtsList[index];
-                              String dateFormatted = intl.DateFormat('yyyy/MM/dd HH:mm').format(debt.lastUpdated);
+                              String dateFormatted = DateFormat('yyyy/MM/dd HH:mm').format(debt.lastUpdated);
                               return Card(
                                 child: ListTile(
                                   title: Text(
