@@ -3,7 +3,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:share_plus/share_plus.dart';
-import 'package:intl/intl' as intl;
+import 'package:intl/intl.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -71,19 +71,17 @@ class _DebtHomePageState extends State<DebtHomePage> {
     loadFromFile();
   }
 
-  // الحصول على مسار الملف المضمون في ذاكرة التطبيق
-  Future<File> getFile() async {
-    final dir = await getApplicationDocumentsDirectory();
-    return File('${dir.path}/my_store_debts.json');
+  Future<File> getSecureFile() async {
+    final dir = await getApplicationSupportDirectory();
+    return File('${dir.path}/debts_data_v3.json');
   }
 
-  // قراءة البيانات من الملف الداخلي
   Future<void> loadFromFile() async {
     try {
-      final file = await getFile();
+      final file = await getSecureFile();
       if (await file.exists()) {
         final contents = await file.readAsString();
-        if (contents.isNotEmpty) {
+        if (contents.trim().isNotEmpty) {
           final List decoded = jsonDecode(contents);
           setState(() {
             debtsList = decoded.map((e) => DebtModel.fromJson(e)).toList();
@@ -91,7 +89,7 @@ class _DebtHomePageState extends State<DebtHomePage> {
         }
       }
     } catch (e) {
-      debugPrint("Read error: $e");
+      debugPrint("Reading error: $e");
     } finally {
       setState(() {
         isLoading = false;
@@ -99,27 +97,13 @@ class _DebtHomePageState extends State<DebtHomePage> {
     }
   }
 
-  // حفظ البيانات مباشرة في الملف مع إجبار الكتابة الفورية
   Future<void> saveToFile() async {
     try {
-      final file = await getFile();
+      final file = await getSecureFile();
       final encoded = jsonEncode(debtsList.map((e) => e.toJson()).toList());
       await file.writeAsString(encoded, flush: true);
-      
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text("تم الحفظ في الملف بنجاح!"),
-          backgroundColor: Colors.green,
-          duration: Duration(seconds: 1),
-        ),
-      );
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text("خطأ في الحفظ: $e"),
-          backgroundColor: Colors.red,
-        ),
-      );
+      debugPrint("Saving error: $e");
     }
   }
 
@@ -162,7 +146,7 @@ class _DebtHomePageState extends State<DebtHomePage> {
   }
 
   void shareDebt(DebtModel debt) {
-    String dateFormatted = intl.DateFormat('yyyy/MM/dd HH:mm').format(debt.lastUpdated);
+    String dateFormatted = DateFormat('yyyy/MM/dd HH:mm').format(debt.lastUpdated);
     String message = 'تفاصيل الدين:\nالزبون: ${debt.name}\nالمبلغ المتبقي: ${debt.amount} دج\nآخر تحديث: $dateFormatted';
     Share.share(message);
   }
@@ -181,13 +165,6 @@ class _DebtHomePageState extends State<DebtHomePage> {
       appBar: AppBar(
         title: const Text('تسيير ديون المحل'),
         backgroundColor: Colors.teal,
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.refresh),
-            onPressed: loadFromFile,
-            tooltip: 'تحديث البيانات',
-          )
-        ],
       ),
       body: isLoading
           ? const Center(child: CircularProgressIndicator())
@@ -233,7 +210,7 @@ class _DebtHomePageState extends State<DebtHomePage> {
                             itemCount: debtsList.length,
                             itemBuilder: (context, index) {
                               final debt = debtsList[index];
-                              String dateFormatted = intl.DateFormat('yyyy/MM/dd HH:mm').format(debt.lastUpdated);
+                              String dateFormatted = DateFormat('yyyy/MM/dd HH:mm').format(debt.lastUpdated);
                               return Card(
                                 child: ListTile(
                                   title: Text(
