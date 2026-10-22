@@ -5,9 +5,6 @@ workflows:
     environment:
       flutter: stable
     scripts:
-      - name: Set up local.properties
-        script: |
-          echo "flutter.sdk=$HOME/flutter" > android/local.properties
       - name: Get Flutter packages
         script: |
           flutter pub get
