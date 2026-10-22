@@ -1,5 +1,4 @@
-
-  workflows:
+workflows:
   default-workflow:
     name: Default Workflow
     instance_type: mac_mini_m2
