@@ -9,10 +9,6 @@ workflows:
       - name: Generate Android project
         script: |
           flutter create . --platforms=android
-      - name: Force compileSdk 34 in Gradle
-        script: |
-          # إجبار جميع المكتبات والمشروع على استخدام compileSdk 34
-          echo "subprojects { subproject -> subproject.afterEvaluate { if (subproject.hasProperty('android')) { subproject.android { compileSdkVersion 34 } } } }" >> android/build.gradle
       - name: Get Flutter packages
         script: |
           flutter pub get
