@@ -1,6 +1,6 @@
 workflows:
-  default-workflow:
-    name: Build APK for Android
+  build-commercial-apk:
+    name: Build Commercial Obfuscated APK
     max_build_duration: 120
     environment:
       flutter: stable
@@ -12,8 +12,8 @@ workflows:
       - name: Get Flutter packages
         script: |
           flutter pub get
-      - name: Build APK
+      - name: Build Obfuscated Commercial APK
         script: |
-          flutter build apk --release
+          flutter build apk --release --obfuscate --split-debug-info=build/app/outputs/symbols
     artifacts:
       - build/app/outputs/flutter-apk/app-release.apk
