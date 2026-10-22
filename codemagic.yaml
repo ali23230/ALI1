@@ -4,10 +4,20 @@ workflows:
     max_build_duration: 120
     environment:
       flutter: stable
+      java: 17
     scripts:
       - name: Generate Android files
         script: |
           flutter create . --platforms=android
+      - name: Fix Android SDK Versions
+        script: |
+          # ضبط الحد الأدنى لإصدار أندرويد ليتوافق مع الحزم المستخدمة
+          BUILD_GRADLE="android/app/build.gradle"
+          if [ -f "$BUILD_GRADLE" ]; then
+            sed -i 's/minSdkVersion .*/minSdkVersion 21/' "$BUILD_GRADLE"
+            sed -i 's/targetSdkVersion .*/targetSdkVersion 34/' "$BUILD_GRADLE"
+            sed -i 's/compileSdkVersion .*/compileSdkVersion 34/' "$BUILD_GRADLE"
+          fi
       - name: Get Flutter packages
         script: |
           flutter pub get
