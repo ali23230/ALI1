@@ -1,5 +1,4 @@
-
-  import 'dart:io';
+import 'dart:io';
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:path_provider/path_provider.dart';
@@ -137,7 +136,7 @@ class _DebtHomePageState extends State<DebtHomePage> {
     amountController.clear();
   }
 
-  // دالة لتسديد أو إنقاص جزء من الدين
+  // نافذة تسديد أو إنقاص جزء من الدين
   void showPayPartDialog(int index) {
     final TextEditingController payController = TextEditingController();
     showDialog(
@@ -277,7 +276,7 @@ class _DebtHomePageState extends State<DebtHomePage> {
                                   trailing: Row(
                                     mainAxisSize: MainAxisSize.min,
                                     children: [
-                                      // زر تسديد جزء من الدين
+                                      // زر تسديد جزء من الدين (أيقونة ناقص خضراء)
                                       IconButton(
                                         icon: const Icon(Icons.remove_circle_outline, color: Colors.green),
                                         tooltip: 'تسديد جزء من الدين',
@@ -308,4 +307,3 @@ class _DebtHomePageState extends State<DebtHomePage> {
     );
   }
 }
-                                  
