@@ -6,18 +6,13 @@ workflows:
       flutter: stable
       java: 17
     scripts:
-      - name: Generate Android files
+      - name: Generate Android project
         script: |
           flutter create . --platforms=android
-      - name: Fix Android SDK Versions
+      - name: Force compileSdk 34 in Gradle
         script: |
-          # ضبط الحد الأدنى لإصدار أندرويد ليتوافق مع الحزم المستخدمة
-          BUILD_GRADLE="android/app/build.gradle"
-          if [ -f "$BUILD_GRADLE" ]; then
-            sed -i 's/minSdkVersion .*/minSdkVersion 21/' "$BUILD_GRADLE"
-            sed -i 's/targetSdkVersion .*/targetSdkVersion 34/' "$BUILD_GRADLE"
-            sed -i 's/compileSdkVersion .*/compileSdkVersion 34/' "$BUILD_GRADLE"
-          fi
+          # إجبار جميع المكتبات والمشروع على استخدام compileSdk 34
+          echo "subprojects { subproject -> subproject.afterEvaluate { if (subproject.hasProperty('android')) { subproject.android { compileSdkVersion 34 } } } }" >> android/build.gradle
       - name: Get Flutter packages
         script: |
           flutter pub get
