@@ -1,24 +1,20 @@
 workflows:
   default-workflow:
-    name: Default Workflow
-    instance_type: mac_mini_m2
+    name: Build APK for Android
+    max_build_duration: 120
     environment:
       flutter: stable
+      android_signing:
+        - reference: keystore_ref
     scripts:
-      - name: Clean & Recreate Android Folder
+      - name: Set up local.properties
         script: |
-          # حذف مجلد أندرويد القديم كلياً لتنظيف أي إعدادات تالفة
-          rm -rf android
-          # إعادة إنشاء هيكل أندرويد نظيف وحديث بالكامل
-          flutter create . --platforms=android
-      - name: Setup Keystore
-        script: |
-          mkdir -p android/app
-          keytool -genkey -v -keystore android/app/key.jks -keyalg RSA -keysize 2048 -validity 10000 -alias key -storepass store123 -keypass store123 -dname "CN=StoreApp, OU=Dev, O=Store, L=Annaba, C=DZ"
+          echo "flutter.sdk=$HOME/flutter" > android/local.properties
       - name: Get Flutter packages
-        script: flutter packages get
+        script: |
+          flutter pub get
       - name: Build APK
-        script: flutter build apk --release
+        script: |
+          flutter build apk --release
     artifacts:
-      - build/app/outputs/flutter-apk/*.apk
-      # update v4
+      - build/app/outputs/flutter-apk/app-release.apk
