@@ -1,5 +1,5 @@
 workflows:
-  build-commercial-apk:
+  default-workflow:
     name: Build Commercial Obfuscated APK
     max_build_duration: 120
     environment:
