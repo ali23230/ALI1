@@ -1,4 +1,5 @@
-import 'dart:io';
+
+  import 'dart:io';
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:path_provider/path_provider.dart';
@@ -17,10 +18,8 @@ class StoreApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MaterialApp(
       debugShowCheckedModeBanner: false,
-      home: Directionality(
-        textDirection: TextDirection.rtl,
-        child: const DebtHomePage(),
-      ),
+      locale: const Locale('ar'),
+      home: const DebtHomePage(),
     );
   }
 }
@@ -138,6 +137,51 @@ class _DebtHomePageState extends State<DebtHomePage> {
     amountController.clear();
   }
 
+  // دالة لتسديد أو إنقاص جزء من الدين
+  void showPayPartDialog(int index) {
+    final TextEditingController payController = TextEditingController();
+    showDialog(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: Text('تسديد جزء من دين: ${debtsList[index].name}'),
+          content: TextField(
+            controller: payController,
+            keyboardType: TextInputType.number,
+            decoration: const InputDecoration(
+              labelText: 'المبلغ المدفوع (دج)',
+              border: OutlineInputBorder(),
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('إلغاء'),
+            ),
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(backgroundColor: Colors.teal),
+              onPressed: () async {
+                double? payAmount = double.tryParse(payController.text.trim());
+                if (payAmount != null && payAmount > 0) {
+                  setState(() {
+                    debtsList[index].amount -= payAmount;
+                    if (debtsList[index].amount < 0) {
+                      debtsList[index].amount = 0;
+                    }
+                    debtsList[index].lastUpdated = DateTime.now();
+                  });
+                  await saveToFile();
+                }
+                Navigator.pop(context);
+              },
+              child: const Text('خصم المبلغ', style: TextStyle(color: Colors.white)),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
   Future<void> deleteDebt(int index) async {
     setState(() {
       debtsList.removeAt(index);
@@ -233,12 +277,22 @@ class _DebtHomePageState extends State<DebtHomePage> {
                                   trailing: Row(
                                     mainAxisSize: MainAxisSize.min,
                                     children: [
+                                      // زر تسديد جزء من الدين
+                                      IconButton(
+                                        icon: const Icon(Icons.remove_circle_outline, color: Colors.green),
+                                        tooltip: 'تسديد جزء من الدين',
+                                        onPressed: () => showPayPartDialog(index),
+                                      ),
+                                      // زر المشاركة
                                       IconButton(
                                         icon: const Icon(Icons.share, color: Colors.orange),
+                                        tooltip: 'مشاركة',
                                         onPressed: () => shareDebt(debt),
                                       ),
+                                      // زر الحذف
                                       IconButton(
                                         icon: const Icon(Icons.delete, color: Colors.grey),
+                                        tooltip: 'حذف',
                                         onPressed: () => deleteDebt(index),
                                       ),
                                     ],
@@ -254,3 +308,4 @@ class _DebtHomePageState extends State<DebtHomePage> {
     );
   }
 }
+                                  
