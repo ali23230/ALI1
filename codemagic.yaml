@@ -5,55 +5,12 @@ workflows:
     environment:
       flutter: stable
     scripts:
-      - name: Initialize Android & Keystore
+      - name: Setup Keystore
         script: |
-          # 1. إنشاء ملفات أندرويد نظيفة وحديثة بالكامل
-          flutter create . --platforms=android --org com.example.storeapp
-          
-          # 2. إنشاء مفتاح توقيع رقمي ثابت
           mkdir -p android/app
-          keytool -genkey -v -keystore android/app/key.jks -keyalg RSA -keysize 2048 -validity 10000 -alias key -storepass store123 -keypass store123 -dname "CN=StoreApp, OU=Dev, O=Store, L=Annaba, C=DZ"
-
-          # 3. إعداد build.gradle.kts للتوقيع
-          cat << 'EOF' > android/app/build.gradle.kts
-          plugins {
-              id("com.android.application")
-              id("kotlin-android")
-              id("dev.flutter.flutter-gradle-plugin")
-          }
-
-          android {
-              namespace = "com.example.storeapp"
-              compileSdk = 35
-
-              signingConfigs {
-                  create("release") {
-                      storeFile = file("key.jks")
-                      storePassword = "store123"
-                      keyAlias = "key"
-                      keyPassword = "store123"
-                  }
-              }
-
-              defaultConfig {
-                  applicationId = "com.example.storeapp"
-                  minSdk = flutter.minSdkVersion
-                  targetSdk = 35
-                  versionCode = 1
-                  versionName = "1.0"
-              }
-
-              buildTypes {
-                  release {
-                      signingConfig = signingConfigs.getByName("release")
-                  }
-              }
-          }
-
-          flutter {
-              source = "../.."
-          }
-          EOF
+          if [ ! -f android/app/key.jks ]; then
+            keytool -genkey -v -keystore android/app/key.jks -keyalg RSA -keysize 2048 -validity 10000 -alias key -storepass store123 -keypass store123 -dname "CN=StoreApp, OU=Dev, O=Store, L=Annaba, C=DZ"
+          fi
       - name: Get Flutter packages
         script: flutter packages get
       - name: Build APK
