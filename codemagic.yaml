@@ -5,6 +5,9 @@ workflows:
     environment:
       flutter: stable
     scripts:
+      - name: Generate Android files
+        script: |
+          flutter create . --platforms=android
       - name: Get Flutter packages
         script: |
           flutter pub get
