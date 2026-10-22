@@ -1,5 +1,5 @@
 name: customer_debt_tracker
-description: "A new Flutter project for tracking customer debts."
+description: "A commercial Flutter app for tracking customer debts."
 publish_to: 'none'
 
 version: 1.0.0+1
@@ -13,6 +13,10 @@ dependencies:
   cupertino_icons: ^1.0.6
   shared_preferences: ^2.2.2
   share_plus: ^10.0.0
+  flutter_secure_storage: ^9.0.0
+  pdf: ^3.10.8
+  printing: ^5.11.1
+  local_auth: ^2.1.8
 
 dev_dependencies:
   flutter_test:
