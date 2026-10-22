@@ -4,8 +4,6 @@ workflows:
     max_build_duration: 120
     environment:
       flutter: stable
-      android_signing:
-        - reference: keystore_ref
     scripts:
       - name: Set up local.properties
         script: |
