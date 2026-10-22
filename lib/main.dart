@@ -2,7 +2,8 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-void main() {
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized(); // ضروري جداً لتثبيت تخزين البيانات
   runApp(const MyApp());
 }
 
@@ -36,9 +37,9 @@ class Customer {
       };
 
   factory Customer.fromJson(Map<String, dynamic> json) => Customer(
-        name: json['name'],
-        phone: json['phone'],
-        amount: json['amount'],
+        name: json['name'] ?? '',
+        phone: json['phone'] ?? '',
+        amount: (json['amount'] ?? 0.0).toDouble(),
       );
 }
 
@@ -55,31 +56,34 @@ class _CustomerListScreenState extends State<CustomerListScreen> {
   @override
   void initState() {
     super.initState();
-    _loadData(); // تحميل البيانات المحفوظة عند فتح التطبيق
+    _loadData(); // تحميل البيانات فور فتح التطبيق
   }
 
-  // حفظ البيانات محلياً
+  // دالة الحفظ الثابت
   Future<void> _saveData() async {
     final prefs = await SharedPreferences.getInstance();
     final String encodedData = jsonEncode(
       customers.map((c) => c.toJson()).toList(),
     );
-    await prefs.setString('customers_list', encodedData);
+    await prefs.setString('saved_customers_data_v1', encodedData);
   }
 
-  // استرجاع البيانات المحفوظة
+  // دالة التحميل الثابت
   Future<void> _loadData() async {
     final prefs = await SharedPreferences.getInstance();
-    final String? encodedData = prefs.getString('customers_list');
+    final String? encodedData = prefs.getString('saved_customers_data_v1');
     if (encodedData != null) {
-      final List decodedList = jsonDecode(encodedData);
-      setState(() {
-        customers = decodedList.map((item) => Customer.fromJson(item)).toList();
-      });
+      try {
+        final List decodedList = jsonDecode(encodedData);
+        setState(() {
+          customers = decodedList.map((item) => Customer.fromJson(item)).toList();
+        });
+      } catch (e) {
+        // في حال حدوث خطأ في القراءة
+      }
     }
   }
 
-  // 1. إضافة زبون جديد
   void _showAddCustomerDialog(BuildContext context) {
     final TextEditingController nameController = TextEditingController();
     final TextEditingController phoneController = TextEditingController();
@@ -132,7 +136,7 @@ class _CustomerListScreenState extends State<CustomerListScreen> {
                       ),
                     );
                   });
-                  _saveData(); // حفظ التغييرات
+                  _saveData(); // الحفظ الفوري
                   Navigator.pop(context);
                 }
               },
@@ -144,7 +148,6 @@ class _CustomerListScreenState extends State<CustomerListScreen> {
     );
   }
 
-  // 2. إرسال رسالة
   void _sendMessage(Customer customer) {
     showDialog(
       context: context,
@@ -161,7 +164,6 @@ class _CustomerListScreenState extends State<CustomerListScreen> {
     );
   }
 
-  // 3. خصم من الدين (أيقونة خضراء)
   void _showPayPartDialog(BuildContext context, Customer customer) {
     final TextEditingController amountController = TextEditingController();
 
@@ -191,7 +193,7 @@ class _CustomerListScreenState extends State<CustomerListScreen> {
                     customer.amount -= amount;
                     if (customer.amount < 0) customer.amount = 0;
                   });
-                  _saveData(); // حفظ التغييرات فوراً
+                  _saveData(); // الحفظ الفوري بعد الخصم
                   Navigator.pop(context);
                 }
               },
@@ -203,7 +205,6 @@ class _CustomerListScreenState extends State<CustomerListScreen> {
     );
   }
 
-  // 4. زيادة الدين (أيقونة حمراء)
   void _showAddDebtDialog(BuildContext context, Customer customer) {
     final TextEditingController amountController = TextEditingController();
 
@@ -232,7 +233,7 @@ class _CustomerListScreenState extends State<CustomerListScreen> {
                   setState(() {
                     customer.amount += amount;
                   });
-                  _saveData(); // حفظ التغييرات فوراً
+                  _saveData(); // الحفظ الفوري بعد الزيادة
                   Navigator.pop(context);
                 }
               },
@@ -244,12 +245,11 @@ class _CustomerListScreenState extends State<CustomerListScreen> {
     );
   }
 
-  // 5. حذف زبون
   void _deleteCustomer(Customer customer) {
     setState(() {
       customers.remove(customer);
     });
-    _saveData(); // حفظ التغييرات بعد الحذف
+    _saveData(); // الحفظ الفوري بعد الحذف
   }
 
   @override
@@ -266,7 +266,7 @@ class _CustomerListScreenState extends State<CustomerListScreen> {
       body: customers.isEmpty
           ? const Center(
               child: Text(
-                'لا يوجد زبائن حالياً، اضغط على زر (+) في الأسفل لإضافة زبون',
+                'لا يوجد زبائن حالياً، اضغط على زر (+) لإضافة زبون',
                 style: TextStyle(fontSize: 16),
                 textAlign: TextAlign.center,
               ),
