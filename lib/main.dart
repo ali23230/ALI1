@@ -1,9 +1,10 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:share_plus/share_plus.dart';
 
 void main() async {
-  WidgetsFlutterBinding.ensureInitialized(); // ضروري جداً لتثبيت تخزين البيانات
+  WidgetsFlutterBinding.ensureInitialized();
   runApp(const MyApp());
 }
 
@@ -52,38 +53,74 @@ class CustomerListScreen extends StatefulWidget {
 
 class _CustomerListScreenState extends State<CustomerListScreen> {
   List<Customer> customers = [];
+  List<Customer> filteredCustomers = [];
+  final TextEditingController searchController = TextEditingController();
+
+  // متغيرات الآلة الحاسبة
+  final TextEditingController calcNum1Controller = TextEditingController();
+  final TextEditingController calcNum2Controller = TextEditingController();
+  String calcResult = '0';
 
   @override
   void initState() {
     super.initState();
-    _loadData(); // تحميل البيانات فور فتح التطبيق
+    _loadData();
+    searchController.addListener(_filterCustomers);
   }
 
-  // دالة الحفظ الثابت
+  @override
+  void dispose() {
+    searchController.dispose();
+    calcNum1Controller.dispose();
+    calcNum2Controller.dispose();
+    super.dispose();
+  }
+
+  // تصفية الزبائن للبحث
+  void _filterCustomers() {
+    final query = searchController.text.toLowerCase();
+    setState(() {
+      filteredCustomers = customers.where((customer) {
+        return customer.name.toLowerCase().contains(query) ||
+            customer.phone.contains(query);
+      }).toList();
+    });
+  }
+
+  // حساب المجموع الكلي للديون
+  double get totalDebt {
+    return customers.fold(0.0, (sum, item) => sum + item.amount);
+  }
+
   Future<void> _saveData() async {
     final prefs = await SharedPreferences.getInstance();
     final String encodedData = jsonEncode(
       customers.map((c) => c.toJson()).toList(),
     );
-    await prefs.setString('saved_customers_data_v1', encodedData);
+    await prefs.setString('customers_list', encodedData);
   }
 
-  // دالة التحميل الثابت
   Future<void> _loadData() async {
     final prefs = await SharedPreferences.getInstance();
-    final String? encodedData = prefs.getString('saved_customers_data_v1');
+    final String? encodedData = prefs.getString('customers_list');
     if (encodedData != null) {
       try {
         final List decodedList = jsonDecode(encodedData);
         setState(() {
           customers = decodedList.map((item) => Customer.fromJson(item)).toList();
+          filteredCustomers = customers;
         });
       } catch (e) {
-        // في حال حدوث خطأ في القراءة
+        // تجاهل الخطأ
       }
+    } else {
+      setState(() {
+        filteredCustomers = customers;
+      });
     }
   }
 
+  // إضافة زبون جديد
   void _showAddCustomerDialog(BuildContext context) {
     final TextEditingController nameController = TextEditingController();
     final TextEditingController phoneController = TextEditingController();
@@ -135,8 +172,9 @@ class _CustomerListScreenState extends State<CustomerListScreen> {
                         amount: amount ?? 0.0,
                       ),
                     );
+                    _filterCustomers();
                   });
-                  _saveData(); // الحفظ الفوري
+                  _saveData();
                   Navigator.pop(context);
                 }
               },
@@ -148,22 +186,14 @@ class _CustomerListScreenState extends State<CustomerListScreen> {
     );
   }
 
-  void _sendMessage(Customer customer) {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: Text('إرسال رسالة لـ ${customer.name}'),
-        content: Text('رقم الهاتف: ${customer.phone}\nالدين الحالي: ${customer.amount} د.ج'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('إغلاق'),
-          ),
-        ],
-      ),
-    );
+  // مشاركة الدين عبر تطبيقات الهاتف (Partage)
+  void _shareCustomerDebt(Customer customer) {
+    final String message =
+        'السلام عليكم ${customer.name}، نذكركم بأن مبلغ الدين الحالي لديكم هو: ${customer.amount} د.ج. شكراً لكم.';
+    Share.share(message);
   }
 
+  // خصم من الدين
   void _showPayPartDialog(BuildContext context, Customer customer) {
     final TextEditingController amountController = TextEditingController();
 
@@ -193,7 +223,7 @@ class _CustomerListScreenState extends State<CustomerListScreen> {
                     customer.amount -= amount;
                     if (customer.amount < 0) customer.amount = 0;
                   });
-                  _saveData(); // الحفظ الفوري بعد الخصم
+                  _saveData();
                   Navigator.pop(context);
                 }
               },
@@ -205,6 +235,7 @@ class _CustomerListScreenState extends State<CustomerListScreen> {
     );
   }
 
+  // إضافة دين
   void _showAddDebtDialog(BuildContext context, Customer customer) {
     final TextEditingController amountController = TextEditingController();
 
@@ -233,7 +264,7 @@ class _CustomerListScreenState extends State<CustomerListScreen> {
                   setState(() {
                     customer.amount += amount;
                   });
-                  _saveData(); // الحفظ الفوري بعد الزيادة
+                  _saveData();
                   Navigator.pop(context);
                 }
               },
@@ -248,76 +279,220 @@ class _CustomerListScreenState extends State<CustomerListScreen> {
   void _deleteCustomer(Customer customer) {
     setState(() {
       customers.remove(customer);
+      _filterCustomers();
     });
-    _saveData(); // الحفظ الفوري بعد الحذف
+    _saveData();
+  }
+
+  // عمليات الآلة الحاسبة
+  void _calculate(String operation) {
+    final double? n1 = double.tryParse(calcNum1Controller.text);
+    final double? n2 = double.tryParse(calcNum2Controller.text);
+
+    if (n1 == null || n2 == null) {
+      setState(() {
+        calcResult = 'أدخل أرقاماً صحيحة';
+      });
+      return;
+    }
+
+    setState(() {
+      switch (operation) {
+        case '+':
+          calcResult = (n1 + n2).toStringAsFixed(2);
+          break;
+        case '-':
+          calcResult = (n1 - n2).toStringAsFixed(2);
+          break;
+        case '*':
+          calcResult = (n1 * n2).toStringAsFixed(2);
+          break;
+        case '/':
+          calcResult = n2 != 0 ? (n1 / n2).toStringAsFixed(2) : 'قسمة على صفر';
+          break;
+      }
+    });
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('قائمة ديون الزبائن'),
+        title: const Text('متابعة ديون الزبائن'),
         centerTitle: true,
       ),
       floatingActionButton: FloatingActionButton(
         onPressed: () => _showAddCustomerDialog(context),
         child: const Icon(Icons.person_add),
       ),
-      body: customers.isEmpty
-          ? const Center(
-              child: Text(
-                'لا يوجد زبائن حالياً، اضغط على زر (+) لإضافة زبون',
-                style: TextStyle(fontSize: 16),
-                textAlign: TextAlign.center,
-              ),
-            )
-          : ListView.builder(
-              itemCount: customers.length,
-              itemBuilder: (context, index) {
-                final customer = customers[index];
-                return Card(
-                  margin: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                  child: ListTile(
-                    title: Text(
-                      customer.name,
-                      style: const TextStyle(fontWeight: FontWeight.bold),
-                    ),
-                    subtitle: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text('الهاتف: ${customer.phone.isEmpty ? "غير محدد" : customer.phone}'),
-                        Text('الدين الحالي: ${customer.amount} د.ج',
-                            style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.blue)),
-                      ],
-                    ),
-                    trailing: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        IconButton(
-                          icon: const Icon(Icons.message, color: Colors.blue),
-                          tooltip: 'إرسال رسالة',
-                          onPressed: () => _sendMessage(customer),
-                        ),
-                        IconButton(
-                          icon: const Icon(Icons.remove_circle_outline, color: Colors.green),
-                          tooltip: 'خصم من الدين',
-                          onPressed: () => _showPayPartDialog(context, customer),
-                        ),
-                        IconButton(
-                          icon: const Icon(Icons.add_circle_outline, color: Colors.red),
-                          tooltip: 'إضافة دين',
-                          onPressed: () => _showAddDebtDialog(context, customer),
-                        ),
-                        IconButton(
-                          icon: const Icon(Icons.delete_outline, color: Colors.grey),
-                          onPressed: () => _deleteCustomer(customer),
-                        ),
-                      ],
-                    ),
-                  ),
-                );
-              },
+      body: Column(
+        children: [
+          // 1. بطاقة إجمالي الدين
+          Container(
+            padding: const EdgeInsets.all(16),
+            margin: const EdgeInsets.all(10),
+            decoration: BoxDecoration(
+              color: Colors.blue.shade50,
+              borderRadius: BorderRadius.circular(10),
+              border: Border.all(color: Colors.blue.shade200),
             ),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                const Text(
+                  'المبلغ الكلي للدين العام:',
+                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                ),
+                Text(
+                  '$totalDebt د.ج',
+                  style: const TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.red),
+                ),
+              ],
+            ),
+          ),
+
+          // 2. شريط البحث
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+            child: TextField(
+              controller: searchController,
+              decoration: InputDecoration(
+                labelText: 'بحث عن زبون (بالاسم أو الهاتف)',
+                prefixIcon: const Icon(Icons.search),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(10),
+                ),
+              ),
+            ),
+          ),
+
+          // 3. الآلة الحاسبة
+          ExpansionTile(
+            title: const Text('🧮 الآلة الحاسبة السريعة',
+                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+            children: [
+              Padding(
+                padding: const EdgeInsets.all(8.0),
+                child: Column(
+                  children: [
+                    Row(
+                      children: [
+                        Expanded(
+                          child: TextField(
+                            controller: calcNum1Controller,
+                            keyboardType: TextInputType.number,
+                            decoration: const InputDecoration(labelText: 'الرقم الأول'),
+                          ),
+                        ),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: TextField(
+                            controller: calcNum2Controller,
+                            keyboardType: TextInputType.number,
+                            decoration: const InputDecoration(labelText: 'الرقم الثاني'),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 10),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                      children: [
+                        ElevatedButton(onPressed: () => _calculate('+'), child: const Text('+')),
+                        ElevatedButton(onPressed: () => _calculate('-'), child: const Text('-')),
+                        ElevatedButton(onPressed: () => _calculate('*'), child: const Text('×')),
+                        ElevatedButton(onPressed: () => _calculate('/'), child: const Text('÷')),
+                      ],
+                    ),
+                    const SizedBox(height: 5),
+                    Text('النتيجة: $calcResult',
+                        style: const TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.green)),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const Divider(),
+
+          // 4. قائمة الزبائن
+          Expanded(
+            child: filteredCustomers.isEmpty
+                ? const Center(
+                    child: Text(
+                      'لا يوجد زبائن مطابقة للبحث أو القائمة فارغة',
+                      style: TextStyle(fontSize: 16),
+                      textAlign: TextAlign.center,
+                    ),
+                  )
+                : ListView.builder(
+                    itemCount: filteredCustomers.length,
+                    itemBuilder: (context, index) {
+                      final customer = filteredCustomers[index];
+                      return Card(
+                        margin: const EdgeInsets.symmetric(
+                            horizontal: 10, vertical: 5),
+                        child: ListTile(
+                          title: Text(
+                            customer.name,
+                            style: const TextStyle(fontWeight: FontWeight.bold),
+                          ),
+                          subtitle: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                  'الهاتف: ${customer.phone.isEmpty ? "غير محدد" : customer.phone}'),
+                              Text('الدين الحالي: ${customer.amount} د.ج',
+                                  style: const TextStyle(
+                                      fontWeight: FontWeight.bold,
+                                      color: Colors.blue)),
+                            ],
+                          ),
+                          trailing: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              // زر المشاركة (Partage)
+                              IconButton(
+                                icon: const Icon(Icons.share, color: Colors.blue),
+                                tooltip: 'مشاركة (Messenger, SMS...)',
+                                onPressed: () => _shareCustomerDebt(customer),
+                              ),
+                              // زر الخصم (أخضر)
+                              IconButton(
+                                icon: const Icon(Icons.remove_circle_outline,
+                                    color: Colors.green),
+                                tooltip: 'خصم من الدين',
+                                onPressed: () =>
+                                    _showPayPartDialog(context, customer),
+                              ),
+                              // زر الزيادة (أحمر)
+                              IconButton(
+                                icon: const Icon(Icons.add_circle_outline,
+                                    color: Colors.red),
+                                tooltip: 'إضافة دين',
+                                onPressed: () =>
+                                    _showAddDebtDialog(context, customer),
+                              ),
+                              // زر الحذف
+                              IconButton(
+                                icon: const Icon(Icons.delete_outline,
+                                    color: Colors.grey),
+                                onPressed: () => _deleteCustomer(customer),
+                              ),
+                            ],
+                          ),
+                        ),
+                      );
+                    },
+                  ),
+          ),
+        ],
+      ),
     );
   }
 }
